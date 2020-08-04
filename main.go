@@ -5,23 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"sync"
 )
 
-type user struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Nonce    string `json:"nonce"`
-	Age      int    `json:"age"`
-	Height   int    `json:"height"`
-}
-
-// Make a array of users to manage (simulate a db layer, but in memory)
-var users = make([]user, 0)
-
-// a mutual exclusion lock to use when adding to the users array. Probably
-// overkill for this sample app, but why not.
-var mutex = &sync.Mutex{}
+var store = NewUserStore()
 
 func main() {
 	// allocate a new server mux a pure Go server.

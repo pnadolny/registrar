@@ -11,16 +11,11 @@ func handleRegister(writer http.ResponseWriter, request *http.Request) {
 	u := readUser(request)
 	if u.Password == "" {
 		var hash, _ = newNonce()
-		newUser := &user{
+		newUser := user{
 			Username: u.Username,
-			Password: "",
 			Nonce:    hash,
-			Age:      0,
-			Height:   0,
 		}
-		mutex.Lock()
-		users = append(users, *newUser)
-		mutex.Unlock()
+		store.store(newUser)
 		res, _ := json.Marshal(newUser)
 		writer.WriteHeader(http.StatusUnauthorized)
 		_, _ = writer.Write(res)

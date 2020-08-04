@@ -3,20 +3,14 @@ package main
 import "net/http"
 
 func handleSave(writer http.ResponseWriter, request *http.Request) {
-
 	user := readUser(request)
-	var updateUser = func(index int) {
-		users[index].Age = user.Age
-		users[index].Height = user.Height
-		users[index].Password = user.Password
-	}
 	for i, v := range users {
 		if v.Nonce == user.Nonce {
-			updateUser(i)
+			store.update(i, user)
 			return
 		}
 		if v.Username == user.Username && v.Password == user.Password {
-			updateUser(i)
+			store.update(i, user)
 			return
 		}
 	}
