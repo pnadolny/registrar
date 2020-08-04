@@ -64,19 +64,20 @@ func readUser(r *http.Request) user {
 }
 
 func handleSave(writer http.ResponseWriter, request *http.Request) {
-	var updateUser = func(index int, u user) {
+
+	user := readUser(request)
+	var updateUser = func(index int) {
 		users[index].Age = user.Age
 		users[index].Height = user.Height
 		users[index].Password = user.Password
 	}
-	user := readUser(request)
 	for i, v := range users {
 		if v.Nonce == user.Nonce {
-			updateUser(i, user)
+			updateUser(i)
 			return
 		}
 		if v.Username == user.Username && v.Password == user.Password {
-			updateUser(i, user)
+			updateUser(i)
 			return
 		}
 	}
