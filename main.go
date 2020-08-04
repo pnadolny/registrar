@@ -9,10 +9,6 @@ import (
 	"sync"
 )
 
-const (
-	salt = "Dutch van der Linde"
-)
-
 type user struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -21,10 +17,15 @@ type user struct {
 	Height   int    `json:"height"`
 }
 
+// Make a array of users to manage (simulate a db layer, but in memory)
 var users = make([]user, 0)
+
+// a mutual exclusion lock to use when adding to the users array. Probably
+// overkill for this sample app, but why not.
 var mutex = &sync.Mutex{}
 
 func main() {
+	// allocate a new server mux a pure Go server.
 	mux := http.NewServeMux()
 	mux.Handle("/register", http.HandlerFunc(handleRegister))
 	mux.Handle("/save", http.HandlerFunc(handleSave))
@@ -32,18 +33,12 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
+// To register, post JSON w/o a password and you will get a nonnce back
+// to use later.
 func handleRegister(writer http.ResponseWriter, request *http.Request) {
-
-	u, err := readUser(request)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
-	}
+	u := readUser(request)
 	if u.Password == "" {
 		var hash, _ = newNonce()
-		mutex.Lock()
-		defer mutex.Unlock()
-
 		newUser := &user{
 			Username: u.Username,
 			Password: "",
@@ -51,39 +46,37 @@ func handleRegister(writer http.ResponseWriter, request *http.Request) {
 			Age:      0,
 			Height:   0,
 		}
+		mutex.Lock()
 		users = append(users, *newUser)
+		mutex.Unlock()
 		res, _ := json.Marshal(newUser)
 		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write(res)
-		return
+		_, _ = writer.Write(res)
 	}
 }
 
-func readUser(r *http.Request) (user, error) {
-	var p user
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return p, err
-	}
-	err = json.Unmarshal(body, &p)
-	if err != nil {
-		return p, err
-	}
-	return p, nil
+// A helper method to unmarshall the JSON into a user
+func readUser(r *http.Request) user {
+	var u user
+	body, _ := ioutil.ReadAll(r.Body)
+	_ = json.Unmarshal(body, &u)
+	return u
 }
 
 func handleSave(writer http.ResponseWriter, request *http.Request) {
-	user, _ := readUser(request)
-	for k, v := range users {
+	var updateUser = func(index int, u user) {
+		users[index].Age = user.Age
+		users[index].Height = user.Height
+		users[index].Password = user.Password
+	}
+	user := readUser(request)
+	for i, v := range users {
 		if v.Nonce == user.Nonce {
-			users[k].Age = user.Age
-			users[k].Height = user.Height
-			users[k].Password = user.Password
+			updateUser(i, user)
 			return
 		}
 		if v.Username == user.Username && v.Password == user.Password {
-			users[k].Age = user.Age
-			users[k].Height = user.Height
+			updateUser(i, user)
 			return
 		}
 	}
@@ -92,7 +85,7 @@ func handleSave(writer http.ResponseWriter, request *http.Request) {
 
 func handleQuery(writer http.ResponseWriter, request *http.Request) {
 
-	var readParam = func(key string, request *http.Request) int {
+	var query = func(key string, request *http.Request) int {
 		keys, ok := request.URL.Query()[key]
 		if ok && len(keys[0]) > 0 {
 			if value, err := strconv.Atoi(keys[0]); err == nil {
@@ -101,16 +94,15 @@ func handleQuery(writer http.ResponseWriter, request *http.Request) {
 		}
 		return -1
 	}
-
 	for _, user := range users {
-		if user.Age == readParam("age", request) {
+		if user.Age == query("age", request) {
 			res, _ := json.Marshal(map[string]int{"age": user.Age})
-			writer.Write(res)
+			_, _ = writer.Write(res)
 			return
 		}
-		if user.Height == readParam("height", request) {
+		if user.Height == query("height", request) {
 			res, _ := json.Marshal(map[string]int{"height": user.Height})
-			writer.Write(res)
+			_, _ = writer.Write(res)
 			return
 		}
 	}

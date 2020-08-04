@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+const (
+	salt = "Dutch van der Linde"
+)
+
 func newNonce() (string, error) {
 	hd := hashids.NewData()
 	hd.Salt = salt
@@ -12,4 +16,3 @@ func newNonce() (string, error) {
 	now := time.Now()
 	return h.Encode([]int{int(now.Unix())})
 }
-
